@@ -1,0 +1,7 @@
+#!/bin/sh
+#
+# return 0 if all slaves are running.
+# we check this by by looking to see that there's no Running column of a slave showing anything but Yes
+
+not_yes=$($HOME/sandboxes/maxscale/check_slaves | grep Running | grep -vw Yes)
+test -z "$not_yes"

@@ -1,0 +1,45 @@
+#!/bin/sh
+#
+# remove-maxscale_sandbox cleans up the environment by removing the MySQL
+# sandboxes and stopping MaxScale if running.
+#
+
+[ -n "$DEBUG" ] && set -x
+myname=$(basename $0)
+mydir=$(dirname $0)
+prefix=cms
+
+msg_info () {
+	echo "$prefix $*"
+}
+
+msg_warning () {
+	msg_info "Warning: $*"
+}
+
+msg_fatal () {
+	msg_info "Error: $*"
+	exit 1
+}
+
+sbdir=$HOME/sandboxes/maxscale
+
+msg_info "checking if MySQL Sandbox exists..."
+if test -d $sbdir; then
+	if test -e $sbdir/stop_all; then
+		msg_info "stopping the MySQL Sandbox instances"
+		$sbdir/stop_all
+	fi
+	msg_info "removing files"
+	rm -rf $sbdir
+else
+	msg_info "OK: no MySQL Sandbox to remove"
+fi
+
+msg_info "checking if MaxScale is running..."
+if ps auwx | grep -q bin[/]maxscale; then
+	msg_info "- it is running so stopping it."
+	sudo /etc/init.d/maxscale stop
+else
+	msg_info "OK: maxscale is not running"
+fi

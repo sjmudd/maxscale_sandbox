@@ -1,0 +1,4 @@
+#!/bin/sh
+
+
+./maxscale_sql -e "SHOW SLAVE STATUS\G"

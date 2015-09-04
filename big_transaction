@@ -1,0 +1,39 @@
+#!/bin/sh
+#
+# Simple script to generate a transaction consisting of a large number of insert statements
+#
+[ -n "$DEBUG" ] && set -x
+
+myname=$(basename $0)
+myhostname=$(hostname -s)
+
+msg_info () {
+	echo "$(date) $myhostname $myname[$$] $*"
+}
+
+ins_count=${1:-30000}
+expand_string=${2:-10}
+string="1234567890123456"
+mysql=$HOME/sandboxes/maxscale/m
+
+msg_info "Creating big string, expanding $string $expand_string times"
+for s in $(seq 1 $expand_string); do
+	string="$string$string"
+done
+len=$(echo "$string" | wc -c)
+msg_info "String has $len characters"
+
+msg_info "Recreating the test table with 4 blog columns"
+$mysql -e "FLUSH LOGS" test
+$mysql -e "DROP TABLE IF EXISTS big_trx" test
+$mysql -e "CREATE TABLE big_trx ( id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, string1 blob, string2 blob, string3 blob, string4 blob ) engine=Innodb" test
+msg_info "Starting with a transaction containing $ins_count inserts"
+(
+	echo "SET sql_mode = 'TRADITIONAL';"
+	echo "BEGIN WORK;"
+	for s in $(seq 1 $ins_count); do
+		echo "INSERT INTO big_trx (id,string1,string2,string3,string4) VALUES (NULL,'$string','$string','$string','$string');"
+	done
+	echo "COMMIT;"
+) | $mysql test
+msg_info "Completed"

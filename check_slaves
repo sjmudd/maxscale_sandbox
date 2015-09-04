@@ -1,0 +1,15 @@
+#!/bin/sh
+#
+# Provide a similar output to MySQL Sandbox's check_slaves
+#
+myname=$(basename $0)
+mydir=$(dirname $0)
+
+sbdir=$HOME/sandboxes/maxscale
+
+test -d $sbdir && \
+	test -x $sbdir/check_slaves && \
+	$sbdir/check_slaves
+echo "maxscale"
+$mydir/maxscale_show_slave_status | grep -wE '(Master_Log_File|Read_Master_Log_Pos|Slave_IO_Running|Slave_SQL_Running|Exec_Master_Log_Pos):'
+

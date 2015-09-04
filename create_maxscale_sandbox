@@ -1,0 +1,320 @@
+#!/bin/sh
+#
+# This script is for setting up a MySQL Sandbox with the binlog router.
+# Intended for testing various things.
+#
+# Current assumptions:
+# - maxscale 1.2 rpm installed (currently needs patching to work with
+#   code I'm using)
+# - MySQL Sandbox installed
+# - I will be using some throttling of master to slave traffic so this
+#   script modified the sandbox configuration to move the listener to
+#   work on the default ip address, assumed to be on eth0 (Linux) or en0
+#   (Mac). This needs to be configurable as is not strictly necessary.
+# - MySQL Sandbox configuration is a little bit hard-coded. Needs fixing.
+[ -n "$DEBUG" ] && set -x
+myname=$(basename $0)
+mydir=$(dirname $0)
+prefix=cms
+
+# get the interface and return it if we know how.
+# assume the ones given. An empty interface means we don't know what to do
+get_interface() {
+	local remote_check="$1"
+
+	local uname=$($remote_check uname)
+
+	case $uname in
+	Darwin) echo en0 ;;
+	Linux) echo eth0 ;;
+	esac
+}
+
+msg_info () {
+	echo "$prefix $*"
+}
+
+msg_warning () {
+	msg_info "Warning: $*"
+}
+
+msg_fatal () {
+	msg_info "Error: $*"
+	exit 1
+}
+
+
+patch_etc_init_d_maxscale () {
+	local dirname=$(dirname $0)
+
+	if [ -z "$remote_check" ]; then
+		msg_info "- Replacing $init_script with patched version"
+		sudo cp $dirname/etc_init.d_maxscale_patched $init_script ||\
+			msg_fatal "Unable to update $remote_host:$init_script
+	else
+		msg_info "- Replacing $remote_host:$init_script with patched version"
+		$dbarsync $dirname/etc_init.d_maxscale_patched $remote_host:$init_script ||\
+			msg_fatal "Unable to update $remote_host:$init_script
+	fi
+}
+
+# do this in one place
+sudo_mkdir_if_missing () {
+	local dir=$1
+
+	if test ! -d $dir; then
+		sudo mkdir $dir
+		sudo chown maxscale:maxscale $dir
+	fi
+}
+
+sb_check_maxscale () {
+	echo 'maxscale'
+	$mysql -e "SHOW SLAVE STATUS\G" | grep -wE '(Master_Log_File|Read_Master_Log_Pos|Slave_IO_Running|Slave_SQL_Running|Exec_Master_Log_Pos):'
+}
+
+###########################################################################
+# Start here                                                              #
+
+## Configuration settings.
+# MaxScale configuration
+maxscale_cnf=/etc/maxscale.cnf
+# MaxScale sysconfig settings
+sysconfig_cnf=/etc/sysconfig/maxscale
+# access to MaxScale via the MySQL port (3306) - probably needs configuration.
+mysql="mysql --host=$(hostname) --user=maxscale --password=maxscale"
+# Sandbox installation directory
+sbdir=$HOME/sandboxes/maxscale  # hard-coded - shouldn't be
+init_script=/etc/init.d/maxscale
+interface=
+# this is ugly but should work.
+dbarsync='sudo -E rsync -e "ssh -l '$USER'" --rsync-path="sudo rsync"'
+
+while getopts i:r: flag; do
+	case $flag in
+	i)	interface=$OPTARG;;
+	r)	remote_host="$OPTARG"
+		remote_check="ssh $OPTARG";;
+	*)	msg_fatal "invalid flag $flag provided"
+	esac
+done
+shift $(($OPTIND - 1))
+
+tarball=$1
+if [ -z "$tarball" ]; then
+	msg_fatal "provide tarball"
+fi
+
+msg_info "checking MySQL Sandbox is installed..."
+msb=$(which make_replication_sandbox)
+if [ -z "$msb" ]; then
+	msg_fatal "Can not find make_replication_sandbox (MySQL Sandbox binary). Please install or adjust PATH"
+fi
+msg_info "OK: found make_replication_sandbox here: $msb"
+
+uname=$(uname)
+msg_info "Determining interface..."
+if [ -z "$interface" ]; then
+	interface=$(get_interface)
+	if [ -z "$interface" ]; then
+		msg_fatal "Can't figure out local interface to use"
+	fi
+fi
+msg_info "- interface: $interface"
+msg_info "checking local interface details..."
+case $uname in
+Darwin)
+	interface=en0
+	ip_address=$(/sbin/ifconfig en0 | grep -w inet | awk '{ print $2 }')
+	;;
+Linux)
+	interface=eth0
+	ip_address=$(/sbin/ifconfig eth0 | grep -w inet | awk '{print $2}' | cut -d: -f2)
+	;;
+*)
+	msg_fatal "Unrecognised OS: $uname"
+esac
+if [ -n "$ip_address" ]; then
+	msg_info "- ip address: $ip_address"
+else
+	msg_fatal "No ip address found"
+fi
+
+# If we have a remote setup check that ssh works.
+if [ -n "$remote_check" ]; then
+	msg_info "checking ssh connectivity to $remote_host..."
+	if $remote_check true; then
+		msg_info "OK: ssh to $remote_host seems to work"
+	else
+		msg_fatal "ssh access to $remote_host fails."
+	fi
+# CHECKME. I get
+# sudo: sorry, you must have a tty to run sudo (on OSX)
+#
+#	msg_info "checking sudo works on $remote_host..."
+#	if $remote_check sudo true; then
+#		msg_info "OK: sudo seems to work on $remote_host"
+#	else
+#		msg_fatal "sudo access on $remote_host fails."
+#	fi
+
+
+
+
+fi
+
+msg_info "checking MaxScale configuration..."
+msg_info "checking for configuration file $maxscale_cnf..."
+if $remote_check test -r $maxscale_cnf; then
+	msg_info "OK: $maxscale_cnf found"
+else
+	msg_fatal "$maxscale_cnf not found"
+fi
+msg_info "checking MaxScale credentials (match what we expect)..."
+maxscale_user=$($remote_check grep ^user= $maxscale_cnf | cut -d= -f2 | head -1)
+if [ "$maxscale_user" = maxscale ]; then
+	msg_info "OK: maxscale username as expected ($maxscale_user)"
+else
+	msg_fatal "maxscale username not as expected. Wanted: user=maxscale, Found: user=$maxscale_user"
+fi
+maxscale_password=$($remote_check grep ^passwd= $maxscale_cnf | cut -d= -f2)
+if [ "$maxscale_password" = maxscale ]; then
+	msg_info "OK: maxscale password as expected"
+else
+	msg_fatal "maxscale password not as expected"
+fi
+msg_info "checking binlogdir is configured..."
+if $remote_check grep ^router_options= $maxscale_cnf | grep -q binlogdir=; then
+	binlogdir=$($remote_check grep ^router_options= $maxscale_cnf | sed -e 's/.*binlogdir=//' -e 's/,.*//')
+	msg_info "- binlogdir=$binlogdir"
+else
+	msg_fatal "binlogdir not configured. Please configure it."
+fi
+
+# check that the /etc/init.d/maxscale is patched as needed.
+msg_info "checking $init_script is patched"
+for stuff in MAXSCALE_OPTIONS $sysconfig_cnf; do
+	msg_info "checking $stuff"
+	if $remote_check grep -q MAXSCALE_OPTIONS $init_script; then
+		msg_info "OK: MAXSCALE_OPTIONS found"
+	else
+		patch_etc_init_d_maxscale
+	fi
+done
+
+#
+### Start to do stuff here
+#
+msg_info "Creating Standard MySQL Sandbox: master + 2 slaves..."
+make_replication_sandbox --replication_directory=maxscale $tarball
+
+# Stop the sandbox
+$sbdir/stop_all
+
+# change the listen address to the ip address
+msg_info "Adjusting MySQL Sandbox configuration to bind to ip address: $ip_address"
+find $sbdir/ -name my.sandbox.cnf -exec sed -i -e "/bind-address[[:space:]]*=/ s/=.*/= $ip_address/" {} \;
+
+$sbdir/restart_all
+
+msg_info "Adding new replication grants"
+msg_info "- for rsandbox@$ip_address"
+$sbdir/m --user=root -e "grant REPLICATION SLAVE on *.* to rsandbox@'$ip_address' identified by 'rsandbox'"
+# Maxscale if on a different box will have a different ip address
+msg_info "- for maxscale@$ip_address"
+$sbdir/m --user=root -e "GRANT SHOW DATABASES ON *.* TO 'maxscale'@'$ip_address' IDENTIFIED BY 'maxscale'; GRANT SELECT ON mysql.db TO 'maxscale'@'$ip_address'; GRANT SELECT ON mysql.user TO 'maxscale'@'$ip_address'"
+
+# change the slave's master address to the ip rather than localhost.
+msg_info "Changing slaves to replicate to master at $ip_address"
+$sbdir/s1 -e "STOP SLAVE; CHANGE MASTER TO MASTER_HOST='$ip_address'; START SLAVE"
+$sbdir/s2 -e "STOP SLAVE; CHANGE MASTER TO MASTER_HOST='$ip_address'; START SLAVE"
+
+# should be running now.
+# check it.
+msg_info "checking slaves..."
+if $mydir/check_slaves_running; then
+	msg_info "OK: Slaves are replicating"
+else
+	msg_fatal "Not ALL slaves are replicating"
+fi
+
+msg_info "checking for binlog stem (from master)..."
+log_bin=$(grep log-bin $sbdir/master/my.sandbox.cnf | cut -d= -f2)
+msg_info "- log_bin=$log_bin"
+
+msg_info "checking for master's listen port..."
+master_port=$(grep port $sbdir/master/my.sandbox.cnf | head -1 | awk '{ print $3 }')
+
+# Look on the master as that's safer.
+msg_info "checking MaxScale filestem configuration..."
+filestem=$($remote_check grep ^router_options= $maxscale_cnf | sed -e 's/.*filestem=//' -e 's/,.*//')
+msg_info "filestem: $filestem"
+if [ $filestem = $log_bin ]; then
+	msg_info "OK: filestem and log_bin match"
+else
+	if [ -z "$remote_check" ]; then
+		msg_info "WARNING: filestem and log_bin DO NOT match. Fixing..."
+		sudo sed -i  -e "s/filestem=\(.*\),/filestem=$log_bin,/" $maxscale_cnf
+	else
+		msg_fatal "router_options=..,filestem=... is wrong. Should be filestem=$log_bin. Please fix $remote_host:$maxscale_cnf."
+	fi
+fi
+msg_info "checking for first binlog file..."
+first_log_file=$(ls $sbdir/master/data | grep ^$filestem.0 | head -1)
+msg_info "- $first_log_file"
+
+ts=$(date +%Y%m%d.%H%M%S)
+if $remote_check test -e $binlogdir/master.ini; then
+	if [ -z "$remote_host" ]; then
+		sudo_mkdir_if_missing $binlogdir/$ts
+		msg_info "- moving $binlogdir/master.ini under $binlogdir/$ts"
+		sudo mv $binlogdir/master.ini $binlogdir/$ts/
+	else
+		msg_fatal "Please clean up $remote_host:$binlogdir yourself."
+	fi
+fi
+if [ -z "$remote_host" ]; then
+	for f in $binlogdir/${filestem}*; do   # no match generates a filename with a start at the end.
+		test -f "$f" || break
+		sudo_mkdir_if_missing $binlogdir/$ts
+		msg_info "- moving $f under $binlogdir/$ts"
+		sudo mv $f $binlogdir/$ts/
+	done
+else
+	msg_warning "Unable to clean up any binlog files on $remote_host. This may break stuff (FIXME)"
+fi
+
+msg_info "starting MaxScale..."
+if [ -z "$remote_host" ]; then
+	sudo $init_script start
+else
+	msg_fatal "CAN NOT START MAXSCALE REMOTE. FIXME"
+fi
+
+msg_info "configuring MaxScale to talk to master at $ip_address:$master_post $first_log_file..."
+$mysql -e "CHANGE MASTER TO MASTER_HOST='$ip_address', MASTER_PORT=$master_port, MASTER_USER='rsandbox', MASTER_PASSWORD='rsandbox', MASTER_LOG_FILE='$first_log_file', MASTER_LOG_POS=4"
+$mysql -e "START SLAVE"
+
+# setup maxscale
+# - start up maxscale - with the right config
+# - find the details of the master port / ip address
+# - execute a change master using the master details.
+
+# go to slave 2, then change master to the maxscale server.
+# inject some dummy statements into master.
+# sleep 5
+# check that the slaves are up to date
+
+msg_info "Moving slave 2 under MaxScale"
+# now move slave2 under maxscale
+$sbdir/s2 -e 'STOP SLAVE'
+pos=$($sbdir/s2 -e 'SHOW SLAVE STATUS\G')
+log_file=$(echo "$pos" | grep Relay_Master_Log_File: | awk '{ print $2 }')
+log_pos=$(echo "$pos" | grep Exec_Master_Log_Pos: | awk '{ print $2 }')
+
+$sbdir/s2 -e "CHANGE MASTER TO MASTER_HOST='$ip_address', MASTER_PORT=3306, MASTER_LOG_FILE='$log_file', MASTER_LOG_POS=$log_pos"
+$sbdir/s2 -e "START SLAVE"
+
+msg_info "checking replication configuration..."
+$sbdir/check_slaves
+sb_check_maxscale

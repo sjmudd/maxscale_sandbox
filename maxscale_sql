@@ -1,0 +1,6 @@
+#!/bin/sh
+#
+# Connect to maxscale on the SQL port
+#
+
+mysql --host=$(./my_ipaddress) --user=maxscale --password=maxscale  "$@"
