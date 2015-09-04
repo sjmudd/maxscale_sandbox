@@ -6,7 +6,7 @@ Some quick scripts to allow me to create a sandbox environment with MaxScale and
 Currently this is a very basic set of scripts and assumes that [MaxScale](https://mariadb.com/products/mariadb-maxscale) is going to be connected to a MySQL Sandbox setup.
 The following assumptions are being made:
 * Runs on [CentOS](https://www.centos.org/) or [RHEL](http://www.redhat.com/en) 6
-* MaxScale installed rpm is v1.2.0 (and the init scripts need patching)
+* MaxScale installed rpm is v1.2.0 (The init scripts need patching, pending [MXS-302](https://mariadb.atlassian.net/browse/MXS-302).)
 * [MySQL Sandbox](http://mysqlsandbox.net/) is installed
 * The replication topology is a master and two slaves with one of the slaves replicating from MaxScale which in turn replicates from the master.
 * MySQL Sandbox usually makes the MySQL servers listen to 127.0.0.1 on different ports. This script changes the listener address to the host's main ip. This is intended to make it possible to locate MaxScale on a different server (reachable by ssh) from the MySQL servers.
