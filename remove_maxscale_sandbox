@@ -8,6 +8,7 @@
 myname=$(basename $0)
 mydir=$(dirname $0)
 prefix=rms
+maxscale_cnf=/etc/maxscale.cnf
 
 msg_info () {
 	echo "$prefix $*"
@@ -42,4 +43,9 @@ if ps auwx | grep -q bin[/]maxscale; then
 	sudo /etc/init.d/maxscale stop
 else
 	msg_info "OK: maxscale is not running"
+fi
+binlogdir=$($remote_check grep ^router_options= $maxscale_cnf | sed -e 's/.*binlogdir=//' -e 's/,.*//')
+if [ -n "$binlogdir" -a "$binlogdir" != / ]; then
+	msg_info "Cleanging up under binlog directory $binlogdir"
+	sudo rm -rf $binlogdir/*
 fi
