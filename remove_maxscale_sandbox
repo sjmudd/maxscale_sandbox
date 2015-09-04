@@ -7,7 +7,7 @@
 [ -n "$DEBUG" ] && set -x
 myname=$(basename $0)
 mydir=$(dirname $0)
-prefix=cms
+prefix=rms
 
 msg_info () {
 	echo "$prefix $*"
