@@ -196,7 +196,7 @@ msg_info "checking $init_script is patched"
 for stuff in MAXSCALE_OPTIONS $sysconfig_cnf; do
 	msg_info "checking $stuff"
 	if $remote_check grep -q MAXSCALE_OPTIONS $init_script; then
-		msg_info "OK: MAXSCALE_OPTIONS found"
+		msg_info "OK: $stuff found"
 	else
 		patch_etc_init_d_maxscale
 	fi
