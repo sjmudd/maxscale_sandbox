@@ -46,6 +46,6 @@ else
 fi
 binlogdir=$($remote_check grep ^router_options= $maxscale_cnf | sed -e 's/.*binlogdir=//' -e 's/,.*//')
 if [ -n "$binlogdir" -a "$binlogdir" != / ]; then
-	msg_info "Cleanging up under binlog directory $binlogdir"
+	msg_info "Cleaning up under binlog directory $binlogdir"
 	sudo rm -rf $binlogdir/*
 fi
