@@ -1,0 +1,15 @@
+#!/bin/sh
+#
+# Check the binlogs on the master and compare on maxscale. They are
+# expected to be the same barring replication delay etc.
+#
+myname=$(basename $0)
+mydir=$(dirname $0)
+
+sbdir=$HOME/sandboxes/maxscale
+
+echo "master"
+ls -l $sbdir/master/data/mysql-bin.0*
+
+echo "maxscale"
+ls -l /maxscale/maxscale/mysql-bin.0*
