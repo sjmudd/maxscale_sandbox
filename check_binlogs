@@ -12,4 +12,9 @@ echo "master"
 ls -l $sbdir/master/data/mysql-bin.0*
 
 echo "maxscale"
-ls -l /maxscale/maxscale/mysql-bin.0*
+count=$(ls -l /maxscale/maxscale/mysql-bin.0* 2>/dev/null | wc -l)
+if [ $count = 0 ]; then
+	echo "- no binlogs found"
+else
+	ls -l /maxscale/maxscale/mysql-bin.0*
+fi
