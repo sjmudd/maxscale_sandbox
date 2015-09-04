@@ -111,6 +111,10 @@ if [ -z "$msb" ]; then
 	msg_fatal "Can not find make_replication_sandbox (MySQL Sandbox binary). Please install or adjust PATH"
 fi
 msg_info "OK: found make_replication_sandbox here: $msb"
+msg_info "checking for existing setup..."
+if test -d $sbdir; then
+	msg_fatal "Sandbox directory $sbdir already exists"
+fi
 
 uname=$(uname)
 msg_info "Determining interface..."

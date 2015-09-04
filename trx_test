@@ -1,0 +1,75 @@
+#!/bin/sh
+#
+#
+# Do a check of stopping the master with a big transaction and see that
+# the slaves and maxscale recover correctly afterwards.
+myname=$(basename $0)
+myhostname=$(hostname -s)
+
+msg_info () {
+	echo "$(date) $myhostname $myname[$$]: $*"
+}
+
+msg_fatal () {
+	msg_info "FATAL: $*"
+	exit 1
+}
+
+msg_sleep() {
+	local seconds=$1
+	msg_info "sleep $seconds seconds"
+	sleep $seconds
+}
+
+all_checks () {
+	./status_all 
+	./check_slaves
+	./check_binlogs 
+
+	./m -BNe"select count(*) from big_trx" test
+	./s1 -BNe"select count(*) from big_trx" test
+	./s2 -BNe"select count(*) from big_trx" test
+	./s2 -BNe"checksum table big_trx" test
+	./s1 -BNe"checksum table big_trx" test
+	./m -BNe"checksum table big_trx" test
+}
+
+sbdir=$HOME/sandboxes/maxscale
+stop_time=  # don't stop
+while getopts s: flag; do
+	case $flag in
+	s)	stop_time=$OPTARG;;
+	*)	msg_fatal "Invalid flag $flag"
+	esac
+done
+shift $(($OPTIND - 1))
+trx_size=${1:-30000}
+
+# run a big transaction and check that it works.
+./create_maxscale_sandbox ~/Downloads/mysql-5.6.26-linux-glibc2.5-x86_64.tar.gz  ||\
+	msg_fatal "Unable to create maxscale sandbox"
+./big_transaction $trx_size
+msg_sleep 1
+
+if [ -n "$stop_time" ]; then
+	msg_info "stop master"
+	$sbdir/master/stop ||\
+		msg_fatal "Unable to stop master cleanly"
+fi
+
+all_checks
+
+if [ -n "$stop_time" -a "$stop_time" != -1 ]; then
+		msg_sleep $stop_time
+		msg_info "restart master"
+		$sbdir/master/start ||\
+			msg_fatal "Unable to start master cleanly"
+	else
+		msg_info "NOT Stopping master"
+	fi
+
+	msg_sleep 5
+
+	msg_info "Final status checks"
+	all_checks
+fi

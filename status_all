@@ -1,0 +1,15 @@
+#!/bin/sh
+#
+# Provide a similar output to MySQL Sandbox's check_slaves
+#
+myname=$(basename $0)
+mydir=$(dirname $0)
+
+sbdir=$HOME/sandboxes/maxscale
+
+test -d $sbdir && \
+	test -x $sbdir/status_all && \
+	$sbdir/status_all
+
+ps auwx | grep -q bin[/]maxscale
+if test $? = 0; then echo "maxscale on"; else echo "maxscale off"; fi
