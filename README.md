@@ -5,7 +5,7 @@ Some quick scripts to allow me to create a sandbox environment with MaxScale and
 
 Currently this is a very basic set of scripts and assumes that [MaxScale](https://mariadb.com/products/mariadb-maxscale) is going to be connected to a MySQL Sandbox setup.
 The following assumptions are being made:
-* Runs on CentOS 6/RHEL 6
+* Runs on [CentOS](https://www.centos.org/) or [RHEL](http://www.redhat.com/en) 6
 * MaxScale installed rpm is v1.2.0 (and the init scripts need patching)
 * [MySQL Sandbox](http://mysqlsandbox.net/) is installed
 * The replication topology is a master and two slaves with one of the slaves replicating from MaxScale which in turn replicates from the master.
