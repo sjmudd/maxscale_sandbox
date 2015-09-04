@@ -31,7 +31,7 @@ $ ./remove_maxscale_sandbox
 * `check_slaves` - wrapper to $HOME/sandboxes/maxscale/check_slaves
 * `create_maxscale_sandbox` - create a sandbox environment of MySQL master and 2 slaves with slave 2 replication from MaxScale and MaxScale replicating from the master
 * `maxscale_show_slave_status` - run SHOW SLAVE STATUS on maxscale
-* `maxscale_sql` - SQL connection to MaxScale
+* `maxscale_sql` - SQL connection to MaxScale binlog router port
 * `my_ipaddress` - return my ip address
 * `remove_maxscale_sandbox` - removes the MySQL sandboxes and stops MaxScale
 
