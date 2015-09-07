@@ -22,32 +22,41 @@ msg_sleep() {
 }
 
 all_checks () {
-	./status_all 
-	./check_slaves
-	./check_binlogs 
+	./status_all $include_maxscale
+	./check_slaves $include_maxscale
+	./check_binlogs $include_maxscale
 
-	./m -BNe"SELECT COUNT(*) FROM big_trx" test
-	./s1 -BNe"SELECT COUNT(*) FROM big_trx" test
-	./s2 -BNe"SELECT COUNT(*) FROM big_trx" test
-	./s2 -BNe"CHECKSUM TABLE big_trx" test
-	./s1 -BNe"CHECKSUM TABLE big_trx" test
-	./m -BNe"CHECKSUM TABLE big_trx" test
+	./trx_check
 }
 
+# shouldn't be hard-coded
+tarball=~/Downloads/mysql-5.6.26-linux-glibc2.5-x86_64.tar.gz
+include_maxscale=-m
 sbdir=$HOME/sandboxes/maxscale
 stop_time=  # don't stop
-while getopts s: flag; do
+while getopts t:ns: flag; do
 	case $flag in
+	n)	include_maxscale=;;
 	s)	stop_time=$OPTARG;;
+	t)	tarball=$OPTARG;;
 	*)	msg_fatal "Invalid flag $flag"
 	esac
 done
 shift $(($OPTIND - 1))
 trx_size=${1:-10000}
 
+msg_info "Will run test with transaction size of $trx_size"
+
 # run a big transaction and check that it works.
-./create_maxscale_sandbox ~/Downloads/mysql-5.6.26-linux-glibc2.5-x86_64.tar.gz  ||\
-	msg_fatal "Unable to create maxscale sandbox"
+if [ -n "$include_maxscale" ]; then
+	./create_maxscale_sandbox $tarball  ||\
+		msg_fatal "Unable to create maxscale sandbox"
+else
+	msg_info "Creating Standard MySQL Sandbox: master + 2 slaves..."
+	make_replication_sandbox --replication_directory=maxscale $tarball ||\
+		msg_fatal "Unable to create MySQL sandbox"
+fi
+
 ./big_transaction $trx_size
 msg_sleep 1
 

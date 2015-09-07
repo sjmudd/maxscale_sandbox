@@ -7,9 +7,21 @@ mydir=$(dirname $0)
 
 sbdir=$HOME/sandboxes/maxscale
 
+do_maxscale=
+while getopts m flag; do
+        case $flag in
+        m)      do_maxscale=1;;
+        *)      echo "$myname Usage [-m]     check maxscale too"
+                exit 1
+        esac
+done
+shift $(($OPTIND - 1))
+
 test -d $sbdir && \
 	test -x $sbdir/status_all && \
 	$sbdir/status_all
 
-ps auwx | grep -q bin[/]maxscale
-if test $? = 0; then echo "maxscale on"; else echo "maxscale off"; fi
+if [ -n "$do_maxscale" ]; then
+	ps auwx | grep -q bin[/]maxscale
+	if test $? = 0; then echo "maxscale on"; else echo "maxscale off"; fi
+fi

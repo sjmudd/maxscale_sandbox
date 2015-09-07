@@ -7,9 +7,21 @@ mydir=$(dirname $0)
 
 sbdir=$HOME/sandboxes/maxscale
 
+do_maxscale=
+while getopts m flag; do
+	case $flag in
+	m)	do_maxscale=1;;
+	*)	echo "$myname Usage [-m]     check maxscale too"
+		exit 1
+	esac
+done
+shift $(($OPTIND - 1))
+
 test -d $sbdir && \
 	test -x $sbdir/check_slaves && \
 	$sbdir/check_slaves
-echo "maxscale"
-$mydir/maxscale_show_slave_status | grep -wE '(Master_Log_File|Read_Master_Log_Pos|Slave_IO_Running|Slave_SQL_Running|Exec_Master_Log_Pos):'
 
+if [ -n "$do_maxscale" ]; then
+	echo "maxscale"
+	$mydir/maxscale_show_slave_status | grep -wE '(Master_Log_File|Read_Master_Log_Pos|Slave_IO_Running|Slave_SQL_Running|Exec_Master_Log_Pos):'
+fi

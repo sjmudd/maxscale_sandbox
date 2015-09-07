@@ -8,13 +8,25 @@ mydir=$(dirname $0)
 
 sbdir=$HOME/sandboxes/maxscale
 
+do_maxscale=
+while getopts m flag; do
+	case $flag in
+	m) do_maxscale=1;;
+	*) echo "$myname: [-n]     do not talk to maxscale"
+	exit 1
+	esac
+done
+shift $(($OPTIND - 1))
+
 echo "master"
 ls -l $sbdir/master/data/mysql-bin.0*
 
-echo "maxscale"
-count=$(ls -l /maxscale/maxscale/mysql-bin.0* 2>/dev/null | wc -l)
-if [ $count = 0 ]; then
-	echo "- no binlogs found"
-else
-	ls -l /maxscale/maxscale/mysql-bin.0*
+if [ -n "$do_maxscale" ]; then
+	echo "maxscale"
+	count=$(ls -l /maxscale/maxscale/mysql-bin.0* 2>/dev/null | wc -l)
+	if [ $count = 0 ]; then
+		echo "- no binlogs found"
+	else
+		ls -l /maxscale/maxscale/mysql-bin.0*
+	fi
 fi

@@ -6,9 +6,12 @@
 ./check_slaves
 ./check_binlogs
 
-./m -BNe"SELECT COUNT(*) FROM big_trx" test
-./s1 -BNe"SELECT COUNT(*) FROM big_trx" test
-./s2 -BNe"SELECT COUNT(*) FROM big_trx" test
-./s2 -BNe"CHECKSUM TABLE big_trx" test
-./s1 -BNe"CHECKSUM TABLE big_trx" test
-./m -BNe"CHECKSUM TABLE big_trx" test
+echo "min/max/count of id on big_trx of m/s1/s2:"
+./m  -te"SELECT MIN(id), MAX(id), COUNT(*) FROM big_trx" test
+./s1 -te"SELECT MIN(id), MAX(id), COUNT(*) FROM big_trx" test
+./s2 -te"SELECT MIN(id), MAX(id), COUNT(*) FROM big_trx" test
+
+echo "CHECKSUM TABLE of m/s1/s2:"
+./m  -te"CHECKSUM TABLE big_trx" test
+./s1 -te"CHECKSUM TABLE big_trx" test
+./s2 -te"CHECKSUM TABLE big_trx" test

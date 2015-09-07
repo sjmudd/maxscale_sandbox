@@ -11,9 +11,25 @@ msg_info () {
 	echo "$(date) $myhostname $myname[$$] $*"
 }
 
+traditional () {
+	echo "SET sql_mode = 'TRADITIONAL';"
+}
+
+flush_logs () {
+	echo 'FLUSH LOGS;'
+}
+
+insert () {
+	local i=${1:-0}
+	local prefix=$(printf "%06d" $i)
+	local string="$prefix$shortstring"
+
+	echo "INSERT INTO big_trx (id,string1,string2,string3,string4) VALUES (NULL,'$string','$string','$string','$string');"
+}
+
 ins_count=${1:-30000}
 expand_string=${2:-10}
-string="1234567890123456"
+string="abcdefghijklmnop"
 mysql=$HOME/sandboxes/maxscale/m
 
 msg_info "Creating big string, expanding $string $expand_string times"
@@ -21,7 +37,12 @@ for s in $(seq 1 $expand_string); do
 	string="$string$string"
 done
 len=$(echo "$string" | wc -c)
+len=$(($len - 1))
 msg_info "String has $len characters"
+
+# we populate the string with the sequence number
+shortlen=$(($len - 6))
+shortstring=$(echo "$string" | dd bs=$shortlen count=1 2>/dev/null)
 
 msg_info "Recreating the test table with 4 blog columns"
 $mysql -e "FLUSH LOGS" test
@@ -29,11 +50,14 @@ $mysql -e "DROP TABLE IF EXISTS big_trx" test
 $mysql -e "CREATE TABLE big_trx ( id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, string1 blob, string2 blob, string3 blob, string4 blob ) engine=Innodb" test
 msg_info "Starting with a transaction containing $ins_count inserts"
 (
-	echo "SET sql_mode = 'TRADITIONAL';"
+	# The flushing is to make it clear where the transactions here come from
+	flush_logs; insert; flush_logs
+	traditional
 	echo "BEGIN WORK;"
 	for s in $(seq 1 $ins_count); do
-		echo "INSERT INTO big_trx (id,string1,string2,string3,string4) VALUES (NULL,'$string','$string','$string','$string');"
+		insert $s
 	done
 	echo "COMMIT;"
+	flush_logs; insert; flush_logs
 ) | $mysql test
 msg_info "Completed"
