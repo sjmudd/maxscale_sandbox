@@ -14,8 +14,8 @@
 # - MySQL Sandbox configuration is a little bit hard-coded. Needs fixing.
 [ -n "$DEBUG" ] && set -x
 myname=$(basename $0)
+myhostname=$(hostname -s)
 mydir=$(dirname $0)
-prefix=cms
 
 # get the interface and return it if we know how.
 # assume the ones given. An empty interface means we don't know what to do
@@ -31,7 +31,7 @@ get_interface() {
 }
 
 msg_info () {
-	echo "$prefix $*"
+        echo "$(date) $myhostname $myname[$$]: $*"
 }
 
 msg_warning () {
@@ -296,20 +296,12 @@ else
 fi
 
 msg_info "configuring MaxScale to talk to master at $ip_address:$master_post $first_log_file..."
-$mysql -e "CHANGE MASTER TO MASTER_HOST='$ip_address', MASTER_PORT=$master_port, MASTER_USER='rsandbox', MASTER_PASSWORD='rsandbox', MASTER_LOG_FILE='$first_log_file', MASTER_LOG_POS=4"
-$mysql -e "START SLAVE"
+$mysql -e "CHANGE MASTER TO MASTER_HOST='$ip_address', MASTER_PORT=$master_port, MASTER_USER='rsandbox', MASTER_PASSWORD='rsandbox', MASTER_LOG_FILE='$first_log_file', MASTER_LOG_POS=4" ||\
+	msg_fatal "Unable to configure MaxScale under the master"
+$mysql -e "START SLAVE" ||\
+	msg_fatal "Unable to start replication on MaxScale"
 
-# setup maxscale
-# - start up maxscale - with the right config
-# - find the details of the master port / ip address
-# - execute a change master using the master details.
-
-# go to slave 2, then change master to the maxscale server.
-# inject some dummy statements into master.
-# sleep 5
-# check that the slaves are up to date
-
-msg_info "Moving slave 2 under MaxScale"
+msg_info "moving slave 2 under MaxScale"
 # now move slave2 under maxscale
 $sbdir/s2 -e 'STOP SLAVE'
 pos=$($sbdir/s2 -e 'SHOW SLAVE STATUS\G')

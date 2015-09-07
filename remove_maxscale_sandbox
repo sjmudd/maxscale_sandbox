@@ -6,12 +6,12 @@
 
 [ -n "$DEBUG" ] && set -x
 myname=$(basename $0)
+myhostname=$(hostname -s)
 mydir=$(dirname $0)
-prefix=rms
 maxscale_cnf=/etc/maxscale.cnf
 
 msg_info () {
-	echo "$prefix $*"
+        echo "$(date) $myhostname $myname[$$]: $*"
 }
 
 msg_warning () {
