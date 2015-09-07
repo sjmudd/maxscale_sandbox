@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# Checking status
+
+./status_all
+./check_slaves
+./check_binlogs
+
+./m -BNe"SELECT COUNT(*) FROM big_trx" test
+./s1 -BNe"SELECT COUNT(*) FROM big_trx" test
+./s2 -BNe"SELECT COUNT(*) FROM big_trx" test
+./s2 -BNe"CHECKSUM TABLE big_trx" test
+./s1 -BNe"CHECKSUM TABLE big_trx" test
+./m -BNe"CHECKSUM TABLE big_trx" test

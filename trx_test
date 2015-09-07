@@ -26,12 +26,12 @@ all_checks () {
 	./check_slaves
 	./check_binlogs 
 
-	./m -BNe"select count(*) from big_trx" test
-	./s1 -BNe"select count(*) from big_trx" test
-	./s2 -BNe"select count(*) from big_trx" test
-	./s2 -BNe"checksum table big_trx" test
-	./s1 -BNe"checksum table big_trx" test
-	./m -BNe"checksum table big_trx" test
+	./m -BNe"SELECT COUNT(*) FROM big_trx" test
+	./s1 -BNe"SELECT COUNT(*) FROM big_trx" test
+	./s2 -BNe"SELECT COUNT(*) FROM big_trx" test
+	./s2 -BNe"CHECKSUM TABLE big_trx" test
+	./s1 -BNe"CHECKSUM TABLE big_trx" test
+	./m -BNe"CHECKSUM TABLE big_trx" test
 }
 
 sbdir=$HOME/sandboxes/maxscale
