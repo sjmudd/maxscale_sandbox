@@ -44,7 +44,7 @@ msg_info "String has $len characters"
 shortlen=$(($len - 6))
 shortstring=$(echo "$string" | dd bs=$shortlen count=1 2>/dev/null)
 
-msg_info "Recreating the test table with 4 blog columns"
+msg_info "Recreating test table with 4 blob columns"
 $mysql -e "FLUSH LOGS" test
 $mysql -e "DROP TABLE IF EXISTS big_trx" test
 $mysql -e "CREATE TABLE big_trx ( id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, string1 blob, string2 blob, string3 blob, string4 blob ) engine=Innodb" test
