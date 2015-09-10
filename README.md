@@ -22,7 +22,7 @@ Setup:
 ```
 $ ./create_maxscale_sandbox /path/to/mysql-5.6.26-linux-glibc2.5-x86_64.tar.gz
 Cleanup:
-$ ./remove_maxscale_sandbox
+$ ./remove_sandbox
 ```
 
 # Binaries:
@@ -33,5 +33,5 @@ $ ./remove_maxscale_sandbox
 * `maxscale_show_slave_status` - run SHOW SLAVE STATUS on maxscale
 * `maxscale_sql` - SQL connection to MaxScale binlog router port
 * `my_ipaddress` - return my ip address
-* `remove_maxscale_sandbox` - removes the MySQL sandboxes and stops MaxScale
+* `remove_sandbox` - removes the MySQL sandboxes and stops MaxScale
 
