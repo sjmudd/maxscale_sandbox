@@ -41,10 +41,11 @@ disable_mariadb_gtid () {
 # shouldn't be hard-coded
 tarball=~/Downloads/mysql-5.6.26-linux-glibc2.5-x86_64.tar.gz
 disable_mariadb_gtid=
+initial_sleep=1
 include_maxscale=-m
 sbdir=$HOME/sandboxes/maxscale
 stop_time=  # don't stop
-while getopts Gt:ns: flag; do
+while getopts Gt:ns:S flag; do
 	case $flag in
 	G)	disable_mariadb_gtid=1
 		msg_info "DISABLING MARIADB GTID"
@@ -53,6 +54,9 @@ while getopts Gt:ns: flag; do
 		msg_info "EXCLUDING MAXSCALE FROM CONFIGURATION"
 		;;
 	s)	stop_time=$OPTARG;;
+	S)	initial_sleep=
+		msg_info "NOT SLEEPING PRIOR TO SHUTTING DOWN MASTER"
+		;;
 	t)	tarball=$OPTARG;;
 	*)	msg_fatal "Invalid flag $flag"
 	esac
@@ -81,7 +85,9 @@ fi
 	disable_mariadb_gtid
 
 ./big_transaction $trx_size
-msg_sleep 1
+if [ -n "$initial_sleep" ]; then
+	msg_sleep 1
+fi
 
 if [ -n "$stop_time" ]; then
 	msg_info "stop master"
