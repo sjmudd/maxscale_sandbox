@@ -58,7 +58,7 @@ while getopts Gt:ns: flag; do
 	esac
 done
 shift $(($OPTIND - 1))
-trx_size=${1:-10000}
+trx_size=${1:-30000}
 if [ $# -gt 1 ]; then
 	msg_fatal "Too many arguments. Maxiumum 1 (transaction size)"
 fi
@@ -74,6 +74,7 @@ else
 	make_replication_sandbox --replication_directory=maxscale $tarball ||\
 		msg_fatal "Unable to create MySQL sandbox"
 fi
+./m -BNe "SELECT CONCAT('Running version:', @@VERSION)"
 
 # Disable MariaDB GTID
 [ -n "$diable_mariadb_gtid" ] && \
