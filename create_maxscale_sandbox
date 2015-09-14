@@ -89,10 +89,14 @@ init_script=/etc/init.d/maxscale
 interface=
 # this is ugly but should work.
 dbarsync='sudo -E rsync -e "ssh -l '$USER'" --rsync-path="sudo rsync"'
+patch=1
 
-while getopts i:r: flag; do
+while getopts i:r:P flag; do
 	case $flag in
 	i)	interface=$OPTARG;;
+	P)	patch=
+		msg_info "Not patching /etc/init.d/maxscale"
+		;;
 	r)	remote_host="$OPTARG"
 		remote_check="ssh $OPTARG";;
 	*)	msg_fatal "invalid flag $flag provided"
@@ -161,10 +165,6 @@ if [ -n "$remote_check" ]; then
 #	else
 #		msg_fatal "sudo access on $remote_host fails."
 #	fi
-
-
-
-
 fi
 
 msg_info "checking MaxScale configuration..."
@@ -195,16 +195,20 @@ else
 	msg_fatal "binlogdir not configured. Please configure it."
 fi
 
-# check that the /etc/init.d/maxscale is patched as needed.
-msg_info "checking $init_script is patched"
-for stuff in MAXSCALE_OPTIONS $sysconfig_cnf; do
-	msg_info "checking $stuff"
-	if $remote_check grep -q MAXSCALE_OPTIONS $init_script; then
-		msg_info "OK: $stuff found"
-	else
-		patch_etc_init_d_maxscale
-	fi
-done
+# Check that the /etc/init.d/maxscale is patched as needed.
+if [ -n "$patch" ]; then
+	msg_info "checking $init_script is patched"
+	for stuff in MAXSCALE_OPTIONS $sysconfig_cnf; do
+		msg_info "checking $stuff"
+		if $remote_check grep -q MAXSCALE_OPTIONS $init_script; then
+			msg_info "OK: $stuff found"
+		else
+			patch_etc_init_d_maxscale
+		fi
+	done
+else
+	msg_info "Not patching /etc/init.d/maxscale"
+fi
 
 #
 ### Start to do stuff here

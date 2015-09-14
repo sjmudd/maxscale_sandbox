@@ -45,7 +45,8 @@ initial_sleep=1
 include_maxscale=-m
 sbdir=$HOME/sandboxes/maxscale
 stop_time=  # don't stop
-while getopts Gt:ns:S flag; do
+patch=
+while getopts Gt:ns:PS flag; do
 	case $flag in
 	G)	disable_mariadb_gtid=1
 		msg_info "DISABLING MARIADB GTID"
@@ -53,6 +54,7 @@ while getopts Gt:ns:S flag; do
 	n)	include_maxscale=
 		msg_info "EXCLUDING MAXSCALE FROM CONFIGURATION"
 		;;
+	P)	patch=-P;;
 	s)	stop_time=$OPTARG;;
 	S)	initial_sleep=
 		msg_info "NOT SLEEPING PRIOR TO SHUTTING DOWN MASTER"
@@ -71,7 +73,7 @@ msg_info "Will run test with transaction size of $trx_size"
 
 # run a big transaction and check that it works.
 if [ -n "$include_maxscale" ]; then
-	./create_maxscale_sandbox $tarball  ||\
+	./create_maxscale_sandbox $patch $tarball  ||\
 		msg_fatal "Unable to create maxscale sandbox"
 else
 	msg_info "Creating Standard MySQL Sandbox: master + 2 slaves..."
